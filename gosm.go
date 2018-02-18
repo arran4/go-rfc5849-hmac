@@ -70,7 +70,7 @@ func (array ParamArray) AuthBytes() []byte {
 			buf.WriteByte('&')
 		}
 		buf.WriteString(prefix)
-		buf.WriteString(url.QueryEscape(k[1]))
+		buf.WriteString("\"" + url.QueryEscape(k[1]) + "\"")
 	}
 	return buf.Bytes()
 }
