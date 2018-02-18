@@ -42,21 +42,14 @@ func (array ParamArray) EncodeBytes() []byte {
 		return []byte("")
 	}
 	var buf bytes.Buffer
-	keys := make([]string, 0, len(array))
+	sort.Sort(array)
 	for _, k := range array {
-		keys = append(keys, k[0])
-	}
-	sort.Strings(keys)
-	for _, k := range keys {
-		vs := array[k[1]]
-		prefix := url.QueryEscape(k) + "="
-		for _, v := range vs {
-			if buf.Len() > 0 {
-				buf.WriteByte('&')
-			}
-			buf.WriteString(prefix)
-			buf.WriteString(url.QueryEscape(v))
+		prefix := url.QueryEscape(k[0]) + "="
+		if buf.Len() > 0 {
+			buf.WriteByte('&')
 		}
+		buf.WriteString(prefix)
+		buf.WriteString(url.QueryEscape(k[1]))
 	}
 	return buf.Bytes()
 }
@@ -70,17 +63,14 @@ func (array ParamArray) AuthBytes() []byte {
 	for _, k := range array {
 		keys = append(keys, k[0])
 	}
-	sort.Strings(keys)
-	for _, k := range keys {
-		vs := array[k[1]]
-		prefix := url.QueryEscape(k) + "="
-		for _, v := range vs {
-			if buf.Len() > 0 {
-				buf.WriteByte(',')
-			}
-			buf.WriteString(prefix)
-			buf.WriteString("\"" + url.QueryEscape(v) + "\"")
+	sort.Sort(array)
+	for _, k := range array {
+		prefix := url.QueryEscape(k[0]) + "="
+		if buf.Len() > 0 {
+			buf.WriteByte('&')
 		}
+		buf.WriteString(prefix)
+		buf.WriteString(url.QueryEscape(k[1]))
 	}
 	return buf.Bytes()
 }
@@ -129,13 +119,12 @@ func WrapSha1Hmac1(req *http.Request, body string) error {
 		}
 	}
 
-	sort.Sort(ParamArray(params))
 	h.Write(ParamArray(params).EncodeBytes())
 	hb := h.Sum(nil)
 	signature := url.QueryEscape(base64.StdEncoding.EncodeToString(hb))
 	authorizationParams = append(authorizationParams, Pair{"oauth_signature", signature,})
 	authstring := bytes.NewBufferString("OAuth,")
-	sort.Sort(ParamArray(authorizationParams))
+
 	authstring.Write(ParamArray(authorizationParams).AuthBytes())
 	req.Header.Add("Authorization", authstring.String())
 
