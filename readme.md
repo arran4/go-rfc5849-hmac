@@ -24,7 +24,7 @@ func main() {
 	req.Header.Add("Content-Type", "application/json")
 	go_rfc5849_hmac.PublicKey = 
 	go_rfc5849_hmac.SecretKey = 
-	go_rfc5849_hmac.WrapSha1Hmac1(req, bodyText)
+	go_rfc5849_hmac.SignSha1Hmac1(req, bodyText)
 	res, err := http.DefaultClient.Do(req)
 	if err != nil {
 		log.Fatal(err)
