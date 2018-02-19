@@ -20,7 +20,11 @@ var (
 	PublicKey = ""
 	SecretKey = ""
 	Token = ""
+	TimestampGenerator StringResult = DefaultTimestampGenerator
+	NonceGenerator StringResult = DefaultNonceGenerator
 )
+
+type StringResult func () string
 
 type Pair []string
 type ParamArray []Pair
@@ -67,7 +71,7 @@ func (array ParamArray) AuthBytes() []byte {
 	for _, k := range array {
 		prefix := url.QueryEscape(k[0]) + "="
 		if buf.Len() > 0 {
-			buf.WriteByte('&')
+			buf.WriteByte(',')
 		}
 		buf.WriteString(prefix)
 		buf.WriteString("\"" + url.QueryEscape(k[1]) + "\"")
@@ -75,17 +79,22 @@ func (array ParamArray) AuthBytes() []byte {
 	return buf.Bytes()
 }
 
-
-func WrapSha1Hmac1(req *http.Request, body string) error {
-	ts := strconv.Itoa(int(time.Now().Unix()))
+func DefaultNonceGenerator() string {
 	nb := make([]byte, 16)
 	if _, err := rand.Read(nb); err != nil {
-		return err
+		return ""
 	}
-	nonce := hex.EncodeToString(nb)
+	return hex.EncodeToString(nb)
+}
+
+func DefaultTimestampGenerator() string {
+	return strconv.Itoa(int(time.Now().Unix()))
+}
+
+func SignSha1Hmac1(req *http.Request, body string) error {
+	ts := TimestampGenerator()
+	nonce := NonceGenerator()
 	h := hmac.New(sha1.New, []byte(strings.Join([]string{ url.QueryEscape(SecretKey), url.QueryEscape(Token) }, "&")))
-	u2 := req.URL
-	u2.RawQuery = ""
 
 	authorizationParams := []Pair{
 		Pair{"oauth_consumer_key", PublicKey},
@@ -119,9 +128,14 @@ func WrapSha1Hmac1(req *http.Request, body string) error {
 		}
 	}
 
-	h.Write(ParamArray(params).EncodeBytes())
+	u2 := *req.URL
+	u2.RawQuery = ""
+
+	oauthparam := ParamArray(params).EncodeBytes()
+	signThis := strings.Join([]string{req.Method, url.QueryEscape(u2.String()), url.QueryEscape(string(oauthparam)), },"&")
+	h.Write([]byte(signThis))
 	hb := h.Sum(nil)
-	signature := url.QueryEscape(base64.StdEncoding.EncodeToString(hb))
+	signature := base64.StdEncoding.EncodeToString(hb)
 	authorizationParams = append(authorizationParams, Pair{"oauth_signature", signature,})
 	authstring := bytes.NewBufferString("OAuth,")
 
