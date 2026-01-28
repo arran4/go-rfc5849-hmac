@@ -10,7 +10,7 @@ import (
 	"mime"
 	"net/http"
 	"net/url"
-	"sort"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -38,25 +38,15 @@ type Pair []string
 // ParamArray is a collection of Pairs, sortable by key.
 type ParamArray []Pair
 
-func (p ParamArray) Len() int {
-	return len(p)
-}
-
-func (p ParamArray) Less(i, j int) bool {
-	return p[i][0] < p[j][0]
-}
-
-func (p ParamArray) Swap(i, j int) {
-	p[i], p[j] = p[j], p[i]
-}
-
 // EncodeBytes encodes the parameters into a query string format according to RFC 5849.
 func (array ParamArray) EncodeBytes() []byte {
 	if array == nil {
 		return []byte("")
 	}
 	var buf bytes.Buffer
-	sort.Sort(array)
+	slices.SortFunc(array, func(a, b Pair) int {
+		return strings.Compare(a[0], b[0])
+	})
 	for _, k := range array {
 		prefix := Escape(k[0]) + "="
 		if buf.Len() > 0 {
@@ -74,7 +64,9 @@ func (array ParamArray) AuthBytes() []byte {
 		return []byte("")
 	}
 	var buf bytes.Buffer
-	sort.Sort(array)
+	slices.SortFunc(array, func(a, b Pair) int {
+		return strings.Compare(a[0], b[0])
+	})
 	for _, k := range array {
 		prefix := Escape(k[0]) + "="
 		if buf.Len() > 0 {
@@ -115,18 +107,18 @@ func SignSha1Hmac1(req *http.Request, body string) error {
 		Pair{"oauth_version", "1.0"},
 	}
 
-	var params ParamArray = append([]Pair{}, authorizationParams...)
+	params := ParamArray(slices.Clone(authorizationParams))
 
 	if mt, _, err := mime.ParseMediaType(req.Header.Get("Content-Type")); err != nil {
 		return err
-	} else if mt != "application/x-www-form-urlencoded" {
-		// Ignored but should return error -- Use for this is where it isn't considered.
-	} else if ps, err := url.ParseQuery(body); err != nil {
-		return err
-	} else {
-		for k, vs := range ps {
-			for _, v := range vs {
-				params = append(params, Pair{k, v})
+	} else if mt == "application/x-www-form-urlencoded" {
+		if ps, err := url.ParseQuery(body); err != nil {
+			return err
+		} else {
+			for k, vs := range ps {
+				for _, v := range vs {
+					params = append(params, Pair{k, v})
+				}
 			}
 		}
 	}
@@ -142,7 +134,7 @@ func SignSha1Hmac1(req *http.Request, body string) error {
 	u2 := *req.URL
 	u2.RawQuery = ""
 
-	oauthparam := ParamArray(params).EncodeBytes()
+	oauthparam := params.EncodeBytes()
 	signThis := strings.Join([]string{req.Method, Escape(u2.String()), Escape(string(oauthparam))}, "&")
 	h.Write([]byte(signThis))
 	hb := h.Sum(nil)
@@ -159,18 +151,19 @@ func SignSha1Hmac1(req *http.Request, body string) error {
 // Escape encodes a string according to RFC 3986.
 // It escapes all characters except unreserved characters (ALPHA, DIGIT, "-", ".", "_", "~").
 func Escape(s string) string {
-	t := make([]byte, 0, 3*len(s))
+	var b strings.Builder
+	b.Grow(3 * len(s))
 	for i := 0; i < len(s); i++ {
 		c := s[i]
 		if isUnreserved(c) {
-			t = append(t, c)
+			b.WriteByte(c)
 		} else {
-			t = append(t, '%')
-			t = append(t, "0123456789ABCDEF"[c>>4])
-			t = append(t, "0123456789ABCDEF"[c&15])
+			b.WriteByte('%')
+			b.WriteByte("0123456789ABCDEF"[c>>4])
+			b.WriteByte("0123456789ABCDEF"[c&15])
 		}
 	}
-	return string(t)
+	return b.String()
 }
 
 func isUnreserved(c byte) bool {
