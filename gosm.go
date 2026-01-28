@@ -74,10 +74,6 @@ func (array ParamArray) AuthBytes() []byte {
 		return []byte("")
 	}
 	var buf bytes.Buffer
-	keys := make([]string, 0, len(array))
-	for _, k := range array {
-		keys = append(keys, k[0])
-	}
 	sort.Sort(array)
 	for _, k := range array {
 		prefix := Escape(k[0]) + "="

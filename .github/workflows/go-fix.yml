@@ -1,0 +1,38 @@
+name: Go Fix and Format
+
+on:
+  push:
+    branches-ignore:
+      - '**-fix'
+
+jobs:
+  fix:
+    name: Fix and Format
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: 'stable'
+
+      - name: Run Go Format
+        run: go fmt ./...
+
+      - name: Run Go Fix
+        run: go fix ./...
+
+      - name: Create Pull Request
+        uses: peter-evans/create-pull-request@v6
+        with:
+          commit-message: "chore: apply go fmt and go fix"
+          title: "chore: apply go fmt and go fix"
+          body: "This PR applies changes from `go fmt` and `go fix`."
+          branch: "${{ github.ref_name }}-fix"
+          base: "${{ github.ref_name }}"
+          delete-branch: true
