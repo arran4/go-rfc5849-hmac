@@ -1,5 +1,7 @@
 # go-rfc5849-hmac
 
+> **Archived for now (November 2026).** This repository is not actively maintained and is provided as-is. If you use this project and would like to see it revived, please [contact me via my GitHub profile](https://github.com/arran4) and mention `go-rfc5849-hmac`. I'm open to unarchiving it if there's a need.
+
 A very basic simple RFC5849 (OAuth 1.0a) SHA1 HMAC implementation in Go.
 
 ## Usage
